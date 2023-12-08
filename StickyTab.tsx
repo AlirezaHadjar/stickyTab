@@ -3,16 +3,16 @@ import { Dimensions, StyleSheet, View } from "react-native";
 import Animated, {
   SharedValue,
   interpolate,
+  interpolateColor,
   useAnimatedProps,
   useAnimatedStyle,
 } from "react-native-reanimated";
-import Svg, { Circle, G, Path } from "react-native-svg";
+import Svg, { G, Path } from "react-native-svg";
 import {
   addCurve,
   addLine,
   addQuadraticCurve,
   createPath,
-  mix,
   serialize,
 } from "react-native-redash";
 import { GestureDetector, PanGesture } from "react-native-gesture-handler";
@@ -29,22 +29,25 @@ const styles = StyleSheet.create({
 
 const { width } = Dimensions.get("window");
 
-export const SIZE_WIDTH = 120;
-export const SIZE_HEIGHT = 80;
+export const SIZE_WIDTH = 90;
+export const SIZE_HEIGHT = 40;
 
 export const CONTAINER_PADDING = 10;
-export const TAB_PADDING = 10;
+export const TAB_PADDING = 7;
+
+export const CONTAINER_BORDER_WIDTH = 3;
 
 export const CONTAINER_WIDTH = width - 2 * CONTAINER_PADDING;
-export const CONTAINER_HEIGHT = SIZE_HEIGHT + 2 * TAB_PADDING;
+export const CONTAINER_HEIGHT =
+  SIZE_HEIGHT + 2 * TAB_PADDING + 2 * CONTAINER_BORDER_WIDTH;
 
 const H_FACTOR = 1.3;
-const V_FACTOR = 0.15;
+const V_FACTOR = 0.1;
 
 const HEAD_BORDER_RADIUS = 20;
 const TAIL_BORDER_RADIUS = 20;
-
-export const CONTAINER_BORDER_WIDTH = 3;
+export const CONTAINER_BORDER_RADIUS =
+  (HEAD_BORDER_RADIUS + TAIL_BORDER_RADIUS) / 2 + TAB_PADDING;
 
 const TAIL_CONTROL_DIFF_POINT = {
   x: SIZE_WIDTH / 7,
@@ -55,7 +58,6 @@ const HEAD_CONTROL_DIFF_POINT = {
   y: 0,
 };
 export const MAX_WIDTH = SIZE_WIDTH * H_FACTOR;
-//TODO: Reduce border radius on stretch
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedGroup = Animated.createAnimatedComponent(G);
 
@@ -156,8 +158,15 @@ export const StickyTab: React.FC<StickyTabProps> = ({
       { x: p1.x + tailBorderRadius, y: p1.y }
     );
 
+    const fill = interpolateColor(
+      progress.value,
+      [-1, 0, 1],
+      ["#97c8e8", "#45A6E5", "#97c8e8"]
+    );
+
     return {
       d: serialize(path),
+      fill,
     };
   }, [progress.value, translateX.value]);
 
@@ -167,34 +176,21 @@ export const StickyTab: React.FC<StickyTabProps> = ({
     };
   });
   return (
-    <View
-      style={{
-        width: CONTAINER_WIDTH,
-        height: CONTAINER_HEIGHT,
-        borderWidth: CONTAINER_BORDER_WIDTH,
-        borderColor: "#45A6E5",
-        borderRadius: (HEAD_BORDER_RADIUS + TAIL_BORDER_RADIUS) / 2,
-        marginHorizontal: CONTAINER_PADDING,
-        overflow: "hidden",
-      }}
-    >
-      <GestureDetector gesture={panGesture}>
-        <Svg
-          style={{
-            width: "100%",
-            height: "100%",
-          }}
-        >
-          <AnimatedGroup style={animatedStyle}>
-            <AnimatedPath
-              translateY={TAB_PADDING - CONTAINER_BORDER_WIDTH}
-              translateX={TAB_PADDING}
-              animatedProps={animatedProps}
-              fill={"#45A6E5"}
-            />
-          </AnimatedGroup>
-        </Svg>
-      </GestureDetector>
-    </View>
+    <GestureDetector gesture={panGesture}>
+      <Svg
+        style={{
+          width: "100%",
+          height: "100%",
+        }}
+      >
+        <AnimatedGroup style={animatedStyle}>
+          <AnimatedPath
+            translateY={TAB_PADDING}
+            translateX={TAB_PADDING}
+            animatedProps={animatedProps}
+          />
+        </AnimatedGroup>
+      </Svg>
+    </GestureDetector>
   );
 };
