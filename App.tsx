@@ -1,16 +1,12 @@
-import { StatusBar } from "expo-status-bar";
-import { Dimensions, StyleSheet, Text, View } from "react-native";
+import { StyleSheet } from "react-native";
 import Animated, {
   Extrapolate,
-  cancelAnimation,
   interpolate,
-  useAnimatedProps,
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
-import { Path, Svg } from "react-native-svg";
 import { snapPoint } from "react-native-redash";
 import {
   Gesture,
@@ -18,66 +14,74 @@ import {
   GestureHandlerRootView,
 } from "react-native-gesture-handler";
 import React from "react";
-import { MAX_WIDTH, SIZE_WIDTH, StickyTab } from "./StickyTab";
+import {
+  CONTAINER_WIDTH,
+  MAX_WIDTH,
+  SIZE_WIDTH,
+  StickyTab,
+  TAB_PADDING,
+  CONTAINER_BORDER_WIDTH,
+} from "./StickyTab";
 
-const { width, height } = Dimensions.get("window");
+const MAX_DRAG =
+  CONTAINER_WIDTH - 2 * TAB_PADDING - SIZE_WIDTH - CONTAINER_BORDER_WIDTH * 2;
 
 export default function App() {
-  const isOnEnd = useSharedValue(true);
   const sticked = useSharedValue(true);
+  const position = useSharedValue(0);
   const sticking = useDerivedValue(() => withSpring(sticked.value ? 1 : 0));
   const translateX = useSharedValue(0);
+  const tabTranslation = useDerivedValue(
+    () =>
+      sticked.value
+        ? position.value
+        : position.value + (1 - sticking.value) * translateX.value,
+    [sticked.value, position.value, translateX.value]
+  );
   const progress = useDerivedValue(
     () =>
       sticking.value *
-      interpolate(translateX.value, [0, MAX_WIDTH], [0, 1], Extrapolate.CLAMP)
+      interpolate(
+        translateX.value,
+        [-MAX_WIDTH, 0, MAX_WIDTH],
+        [-1, 0, 1],
+        Extrapolate.CLAMP
+      )
   );
   const panGesture = Gesture.Pan()
     .onBegin(({ translationX }) => {
-      cancelAnimation(translateX);
-      translateX.value = translationX;
+      // cancelAnimation(translateX);
+      // translateX.value = translationX;
     })
     .onChange(({ translationX }) => {
+      // console.log("change", translationX, offsetX.value);
       translateX.value = translationX;
-      if (translateX.value > MAX_WIDTH) {
+      if (Math.abs(translationX) > MAX_WIDTH) {
         sticked.value = false;
       }
     })
     .onEnd(({ velocityX: velocity }) => {
-      const dest = snapPoint(translateX.value, velocity, [
+      const dest = snapPoint(translateX.value + position.value, velocity, [
         0,
-        width - SIZE_WIDTH,
+        MAX_DRAG,
       ]);
-      translateX.value = withSpring(dest, { velocity }, () => {
+
+      const finalDest = sticked.value ? 0 : dest - position.value;
+      translateX.value = withSpring(finalDest, { velocity }, () => {
+        position.value = sticked.value ? position.value : dest;
+        translateX.value = 0;
         sticked.value = true;
-        if (dest !== 0) {
-          isOnEnd.value = !isOnEnd.value;
-          translateX.value = 0;
-        }
       });
     });
 
-  const container = useAnimatedStyle(() => ({
-    transform: [{ rotate: isOnEnd.value ? "0deg" : "180deg" }],
-  }));
-  const style = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          translateX: (1 - sticking.value) * translateX.value,
-        },
-      ],
-      justifyContent: "center",
-    };
-  });
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Animated.View style={[styles.container, container]}>
-        <GestureDetector gesture={panGesture}>
-          <Animated.View style={[StyleSheet.absoluteFill, style]}>
-            <StickyTab progress={progress} />
-          </Animated.View>
-        </GestureDetector>
+      <Animated.View style={styles.container}>
+        <StickyTab
+          progress={progress}
+          translateX={tabTranslation}
+          panGesture={panGesture}
+        />
       </Animated.View>
     </GestureHandlerRootView>
   );
