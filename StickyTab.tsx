@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
 const { width } = Dimensions.get("window");
 
 export const SIZE_WIDTH = 120;
-export const SIZE_HEIGHT = 120;
+export const SIZE_HEIGHT = 80;
 
 export const CONTAINER_PADDING = 10;
 export const TAB_PADDING = 10;
@@ -38,8 +38,8 @@ export const TAB_PADDING = 10;
 export const CONTAINER_WIDTH = width - 2 * CONTAINER_PADDING;
 export const CONTAINER_HEIGHT = SIZE_HEIGHT + 2 * TAB_PADDING;
 
-const H_FACTOR = 1.5;
-const V_FACTOR = 0.1;
+const H_FACTOR = 1.3;
+const V_FACTOR = 0.15;
 
 const HEAD_BORDER_RADIUS = 20;
 const TAIL_BORDER_RADIUS = 20;
@@ -56,7 +56,6 @@ const HEAD_CONTROL_DIFF_POINT = {
 };
 export const MAX_WIDTH = SIZE_WIDTH * H_FACTOR;
 //TODO: Reduce border radius on stretch
-const AnimatedSVG = Animated.createAnimatedComponent(Svg);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedGroup = Animated.createAnimatedComponent(G);
 
@@ -89,53 +88,72 @@ export const StickyTab: React.FC<StickyTabProps> = ({
         : { x: -(factor.x - 1) * SIZE_WIDTH, y: SIZE_HEIGHT * (1 - factor.y) };
 
     const path = createPath({ x: p1.x + TAIL_BORDER_RADIUS, y: p1.y });
-
+    const headControlX = factor.x * HEAD_CONTROL_DIFF_POINT.x;
+    const tailControlX = factor.x * TAIL_CONTROL_DIFF_POINT.x;
+    const headBorderRadius = interpolate(
+      progress.value,
+      [-1, 0, 1],
+      [
+        HEAD_BORDER_RADIUS / H_FACTOR,
+        HEAD_BORDER_RADIUS,
+        HEAD_BORDER_RADIUS / H_FACTOR,
+      ]
+    );
+    const tailBorderRadius = interpolate(
+      progress.value,
+      [-1, 0, 1],
+      [
+        HEAD_BORDER_RADIUS / H_FACTOR,
+        HEAD_BORDER_RADIUS,
+        HEAD_BORDER_RADIUS / H_FACTOR,
+      ]
+    );
     addCurve(path, {
-      c1: { x: p1.x + TAIL_BORDER_RADIUS + TAIL_CONTROL_DIFF_POINT.x, y: p1.y },
+      c1: { x: p1.x + tailBorderRadius + tailControlX, y: p1.y },
       c2: {
-        x: p2.x - HEAD_BORDER_RADIUS - HEAD_CONTROL_DIFF_POINT.x,
+        x: p2.x - headBorderRadius - headControlX,
         y: p2.y,
       },
       to: {
-        x: p2.x - HEAD_BORDER_RADIUS,
+        x: p2.x - headBorderRadius,
         y: p2.y,
       },
     });
     addQuadraticCurve(
       path,
       { x: p2.x, y: p2.y },
-      { x: p2.x, y: p2.y + HEAD_BORDER_RADIUS }
+      { x: p2.x, y: p2.y + headBorderRadius }
     );
-    addLine(path, { x: p3.x, y: p3.y - HEAD_BORDER_RADIUS });
+    addLine(path, { x: p3.x, y: p3.y - headBorderRadius });
     addQuadraticCurve(
       path,
       { x: p3.x, y: p3.y },
-      { x: p3.x - HEAD_BORDER_RADIUS, y: p3.y }
+      { x: p3.x - headBorderRadius, y: p3.y }
     );
     addCurve(path, {
       c1: {
-        x: p3.x - HEAD_BORDER_RADIUS - HEAD_CONTROL_DIFF_POINT.x,
+        x: p3.x - headBorderRadius - headControlX,
         y: p3.y,
       },
       c2: {
-        x: p4.x + TAIL_BORDER_RADIUS + TAIL_CONTROL_DIFF_POINT.x,
+        x: p4.x + tailBorderRadius + tailControlX,
         y: p4.y,
       },
       to: {
-        x: p4.x + TAIL_BORDER_RADIUS,
+        x: p4.x + tailBorderRadius,
         y: p4.y,
       },
     });
     addQuadraticCurve(
       path,
       { x: p4.x, y: p4.y },
-      { x: p4.x, y: p4.y - TAIL_BORDER_RADIUS }
+      { x: p4.x, y: p4.y - tailBorderRadius }
     );
-    addLine(path, { x: p1.x, y: p1.y + TAIL_BORDER_RADIUS });
+    addLine(path, { x: p1.x, y: p1.y + tailBorderRadius });
     addQuadraticCurve(
       path,
       { x: p1.x, y: p1.y },
-      { x: p1.x + HEAD_BORDER_RADIUS, y: p1.y }
+      { x: p1.x + tailBorderRadius, y: p1.y }
     );
 
     return {
