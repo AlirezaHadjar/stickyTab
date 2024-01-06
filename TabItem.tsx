@@ -18,10 +18,10 @@ import { GestureDetector, PanGesture } from "react-native-gesture-handler";
 import { clamp, sigmoid } from "./utils";
 import { ColorValue } from "react-native";
 
-type GradientProps = { gradientEnabled: true; colors: ColorValue[] };
+type GradientProps = { gradientEnabled: true; colors: string[] };
 type PlainBackgroundProps = {
   gradientEnabled: false;
-  backgroundColor: ColorValue;
+  backgroundColor: string;
 };
 
 export type TabItemBackgroundProps = GradientProps | PlainBackgroundProps;

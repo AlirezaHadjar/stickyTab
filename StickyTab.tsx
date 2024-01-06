@@ -16,13 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Gesture, GestureHandlerRootView } from "react-native-gesture-handler";
 import React, { FC, useState } from "react";
 import { Placeholder } from "./Placeholder";
-import {
-  GRADIENT_COLORS,
-  BACKGROUND_COLOR,
-  TABS_GAP,
-  INNER_PADDING,
-  CONTAINER_BORDER_WIDTH,
-} from "./constants";
+import { TABS_GAP, INNER_PADDING, CONTAINER_BORDER_WIDTH } from "./constants";
 import { TabItem, TabItemBackgroundProps, TabItemProps } from "./TabItem";
 
 type Props = Pick<
@@ -47,6 +41,7 @@ type Props = Pick<
     tabTailBorderRadius?: number;
     containerBorderRadius?: number;
     containerBorderWidth?: number;
+    backgroundColor: string;
   };
 
 export const StickyTab: FC<Props> = (props) => {
@@ -154,108 +149,84 @@ export const StickyTab: FC<Props> = (props) => {
     });
 
   return (
-    <Animated.View style={styles.container}>
-      <View
-        style={[
-          {
-            width: props.containerWidth + containerBorderWidth,
-            height: CONTAINER_HEIGHT + containerBorderWidth,
-          },
-          props.containerStyle,
-        ]}
+    <View
+      style={[
+        {
+          width: props.containerWidth + containerBorderWidth,
+          height: CONTAINER_HEIGHT + containerBorderWidth,
+        },
+        props.containerStyle,
+      ]}
+    >
+      <LinearGradient
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        colors={
+          props.gradientEnabled === false
+            ? [props.backgroundColor]
+            : props.colors
+        }
+        style={{
+          width: props.containerWidth + containerBorderWidth,
+          height: CONTAINER_HEIGHT + containerBorderWidth,
+          borderRadius: containerBorderRadius + containerBorderWidth,
+          padding: containerBorderWidth,
+          overflow: "hidden",
+        }}
       >
         <View
           style={{
-            width: "80%",
-            height: CONTAINER_HEIGHT,
-            alignSelf: "center",
-            position: "absolute",
-            backgroundColor: BACKGROUND_COLOR,
-            shadowColor: GRADIENT_COLORS[0],
-            zIndex: -1,
-            shadowOpacity: 1,
-            shadowRadius: 100,
-            shadowOffset: {
-              width: 20,
-              height: 20,
-            },
-          }}
-        />
-        <LinearGradient
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          colors={GRADIENT_COLORS}
-          style={{
-            width: props.containerWidth + containerBorderWidth,
-            height: CONTAINER_HEIGHT + containerBorderWidth,
-            borderRadius: containerBorderRadius + containerBorderWidth,
-            padding: containerBorderWidth,
+            width: "100%",
+            height: "100%",
+            backgroundColor: props.backgroundColor,
+            borderRadius: containerBorderRadius,
             overflow: "hidden",
           }}
         >
-          <View
-            style={{
-              width: "100%",
-              height: "100%",
-              backgroundColor: BACKGROUND_COLOR,
-              borderRadius: containerBorderRadius,
-              overflow: "hidden",
-            }}
-          >
-            <TabItem
-              verticalResistance={props.verticalResistance}
-              horizontalResistance={props.horizontalResistance}
-              headBorderRadius={tabHeadBorderRadius}
-              tailBorderRadius={tabTailBorderRadius}
-              progress={progress}
-              padding={innerPadding}
-              translateX={tabTranslation}
-              translateY={translateY}
-              panGesture={panGesture}
-              tabWidth={tabWidth}
+          <TabItem
+            verticalResistance={props.verticalResistance}
+            horizontalResistance={props.horizontalResistance}
+            headBorderRadius={tabHeadBorderRadius}
+            tailBorderRadius={tabTailBorderRadius}
+            progress={progress}
+            padding={innerPadding}
+            translateX={tabTranslation}
+            translateY={translateY}
+            panGesture={panGesture}
+            tabWidth={tabWidth}
+            tabHeight={props.tabHeight}
+            gradientEnabled={props.gradientEnabled}
+            backgroundColor={
+              props.gradientEnabled === false && props.backgroundColor
+            }
+            colors={props.gradientEnabled && props.colors}
+          />
+          {props.values.map((value, index) => (
+            <Placeholder
+              key={value}
+              borderRadius={containerBorderRadius - innerPadding}
+              containerPadding={innerPadding}
+              backgroundColor={props.placeholderBackgroundColor}
+              translateX={STEP}
+              renderText={() => props.renderText(value, index)}
               tabHeight={props.tabHeight}
-              gradientEnabled={props.gradientEnabled}
-              backgroundColor={
-                props.gradientEnabled === false && props.backgroundColor
-              }
-              colors={props.gradientEnabled && props.colors}
+              tabWidth={tabWidth}
+              tabTranslation={tabTranslation}
+              index={index}
+              onPress={(translation) => {
+                position.value = withTiming(translation, {
+                  easing: Easing.inOut(Easing.ease),
+                });
+                hapticStartStretch();
+                translateX.value = 0;
+                offsetX.value = 0;
+                sticked.value = true;
+                setSelectedIndex(index);
+              }}
             />
-            {props.values.map((value, index) => (
-              <Placeholder
-                key={value}
-                borderRadius={containerBorderRadius - innerPadding}
-                containerPadding={innerPadding}
-                backgroundColor={props.placeholderBackgroundColor}
-                translateX={STEP}
-                renderText={() => props.renderText(value, index)}
-                tabHeight={props.tabHeight}
-                tabWidth={tabWidth}
-                tabTranslation={tabTranslation}
-                index={index}
-                onPress={(translation) => {
-                  position.value = withTiming(translation, {
-                    easing: Easing.inOut(Easing.ease),
-                  });
-                  hapticStartStretch();
-                  translateX.value = 0;
-                  offsetX.value = 0;
-                  sticked.value = true;
-                  setSelectedIndex(index);
-                }}
-              />
-            ))}
-          </View>
-        </LinearGradient>
-      </View>
-    </Animated.View>
+          ))}
+        </View>
+      </LinearGradient>
+    </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: BACKGROUND_COLOR,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
