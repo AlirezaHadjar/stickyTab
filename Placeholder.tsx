@@ -1,13 +1,5 @@
 import React from "react";
-import {
-  Pressable,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-  Text,
-  Platform,
-  ColorValue,
-} from "react-native";
+import { Pressable, Platform, ColorValue } from "react-native";
 import Animated, {
   Extrapolate,
   SharedValue,
@@ -28,10 +20,6 @@ type PlaceholderProps = {
   containerPadding: number;
   borderRadius: number;
 };
-
-const styles = StyleSheet.create({
-  container: {},
-});
 
 const AnimatedTouchable = Animated.createAnimatedComponent(Pressable);
 

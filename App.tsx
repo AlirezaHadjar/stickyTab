@@ -10,8 +10,6 @@ import {
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 
-type AppProps = {};
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -26,7 +24,7 @@ const { width } = Dimensions.get("window");
 const CONTAINER_PADDING = 20;
 const CONTAINER_WIDTH = width - 2 * CONTAINER_PADDING;
 
-const App: React.FC<AppProps> = ({}) => {
+const App: React.FC = () => {
   const handleEndStretch = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
