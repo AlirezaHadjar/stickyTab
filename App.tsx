@@ -37,19 +37,19 @@ const App: React.FC<AppProps> = ({}) => {
   return (
     <GestureHandlerRootView style={styles.container}>
       <StickyTab
-        tabHeight={40}
+        tabHeight={60}
         innerPadding={INNER_PADDING}
         containerWidth={CONTAINER_WIDTH}
         placeholderBackgroundColor={GRADIENT_COLORS[1]}
         containerStyle={{ marginHorizontal: CONTAINER_PADDING }}
         verticalResistance={0.8}
         backgroundColor={BACKGROUND_COLOR}
-        horizontalResistance={1.5}
+        horizontalResistance={1.3}
         gradientEnabled
         onStretchEnd={handleEndStretch}
         onStretchStart={handleStartStretch}
         colors={GRADIENT_COLORS}
-        values={["Tab 1", "Tab 2", "Tab 3", "Tab 4"]}
+        values={["Tab 1", "Tab 2", "Tab 3"]}
         renderText={(value) => (
           <Text style={{ fontSize: 22, color: TEXT_COLOR, fontWeight: "700" }}>
             {value}
