@@ -11,7 +11,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { snapPoint } from "react-native-redash";
-import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { Gesture, GestureHandlerRootView } from "react-native-gesture-handler";
 import React, { FC, useState } from "react";
@@ -42,6 +41,9 @@ type Props = Pick<
     containerBorderRadius?: number;
     containerBorderWidth?: number;
     backgroundColor: string;
+    onStretchStart?: () => void;
+    onStretchEnd?: () => void;
+    onPressTab?: (index: number) => void;
   };
 
 export const StickyTab: FC<Props> = (props) => {
@@ -95,11 +97,11 @@ export const StickyTab: FC<Props> = (props) => {
         Extrapolate.CLAMP
       )
   );
-  const hapticEndStretch = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const handleEndStretch = () => {
+    if (props.onStretchEnd) props.onStretchEnd();
   };
-  const hapticStartStretch = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const handleStartStretch = () => {
+    if (props.onStretchStart) props.onStretchStart();
   };
   const panGesture = Gesture.Pan()
     .onBegin(() => {
@@ -109,14 +111,14 @@ export const StickyTab: FC<Props> = (props) => {
       translateX.value = prevTranslation;
 
       isRunningId.value = Date.now();
-      runOnJS(hapticStartStretch)();
+      runOnJS(handleStartStretch)();
     })
     .onChange(({ translationX, translationY }) => {
       translateX.value = translationX + offsetX.value;
       translateY.value = translationY;
       if (Math.abs(translationX) > MAX_WIDTH && sticked.value) {
         sticked.value = false;
-        runOnJS(hapticEndStretch)();
+        runOnJS(handleEndStretch)();
       }
     })
     .onEnd(({ velocityX: velocity }) => {
@@ -217,7 +219,7 @@ export const StickyTab: FC<Props> = (props) => {
                 position.value = withTiming(translation, {
                   easing: Easing.inOut(Easing.ease),
                 });
-                hapticStartStretch();
+                handleStartStretch();
                 translateX.value = 0;
                 offsetX.value = 0;
                 sticked.value = true;

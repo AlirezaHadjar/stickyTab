@@ -8,6 +8,7 @@ import {
   TEXT_COLOR,
 } from "./constants";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import * as Haptics from "expo-haptics";
 
 type AppProps = {};
 
@@ -26,6 +27,13 @@ const CONTAINER_PADDING = 20;
 const CONTAINER_WIDTH = width - 2 * CONTAINER_PADDING;
 
 const App: React.FC<AppProps> = ({}) => {
+  const handleEndStretch = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
+  const handleStartStretch = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
   return (
     <GestureHandlerRootView style={styles.container}>
       <StickyTab
@@ -38,6 +46,8 @@ const App: React.FC<AppProps> = ({}) => {
         backgroundColor={BACKGROUND_COLOR}
         horizontalResistance={1.5}
         gradientEnabled
+        onStretchEnd={handleEndStretch}
+        onStretchStart={handleStartStretch}
         colors={GRADIENT_COLORS}
         values={["Tab 1", "Tab 2", "Tab 3", "Tab 4"]}
         renderText={(value) => (
