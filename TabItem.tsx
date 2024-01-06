@@ -15,8 +15,7 @@ import {
   serialize,
 } from "react-native-redash";
 import { GestureDetector, PanGesture } from "react-native-gesture-handler";
-import { clamp, sigmoid } from "./utils";
-import { ColorValue } from "react-native";
+import { clamp } from "./utils";
 
 type GradientProps = { gradientEnabled: true; colors: string[] };
 type PlainBackgroundProps = {
@@ -147,7 +146,7 @@ export const TabItem: React.FC<TabItemProps> = (props) => {
       [-1, 0, 1],
       [HEAD_CONTROL_DIFF_POINT.x, 0, TAIL_CONTROL_DIFF_POINT.x]
     );
-    const borderRadiusFactor = Math.pow(1 + sigmoid(1 - normalizedVFactor), 1);
+    // const borderRadiusFactor = Math.pow(1 + sigmoid(1 - normalizedVFactor), 1);
     // const headBorderRadius = interpolate(
     //   progress.value,
     //   [-1, 0, 1],

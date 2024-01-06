@@ -5,7 +5,6 @@ import {
   BACKGROUND_COLOR,
   GRADIENT_COLORS,
   INNER_PADDING,
-  TAB_HEIGHT,
   TEXT_COLOR,
 } from "./constants";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -30,7 +29,7 @@ const App: React.FC<AppProps> = ({}) => {
   return (
     <GestureHandlerRootView style={styles.container}>
       <StickyTab
-        tabHeight={70}
+        tabHeight={40}
         innerPadding={INNER_PADDING}
         containerWidth={CONTAINER_WIDTH}
         placeholderBackgroundColor={GRADIENT_COLORS[1]}
