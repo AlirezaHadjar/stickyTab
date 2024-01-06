@@ -148,24 +148,36 @@ export const TabItem: React.FC<TabItemProps> = (props) => {
       [HEAD_CONTROL_DIFF_POINT.x, 0, TAIL_CONTROL_DIFF_POINT.x]
     );
     const borderRadiusFactor = Math.pow(1 + sigmoid(1 - normalizedVFactor), 1);
+    // const headBorderRadius = interpolate(
+    //   progress.value,
+    //   [-1, 0, 1],
+    //   [
+    //     props.headBorderRadius,
+    //     props.headBorderRadius,
+    //     props.headBorderRadius / (hFactor * borderRadiusFactor),
+    //   ],
+    //   Extrapolate.CLAMP
+    // );
+    // const tailBorderRadius = interpolate(
+    //   progress.value,
+    //   [-1, 0, 1],
+    //   [
+    //     props.headBorderRadius / (hFactor * borderRadiusFactor),
+    //     props.headBorderRadius,
+    //     props.headBorderRadius,
+    //   ],
+    //   Extrapolate.CLAMP
+    // );
     const headBorderRadius = interpolate(
       progress.value,
       [-1, 0, 1],
-      [
-        props.headBorderRadius,
-        props.headBorderRadius,
-        props.headBorderRadius / (hFactor * borderRadiusFactor),
-      ],
+      [props.headBorderRadius, props.headBorderRadius, minHeight / 2],
       Extrapolate.CLAMP
     );
     const tailBorderRadius = interpolate(
       progress.value,
       [-1, 0, 1],
-      [
-        props.headBorderRadius / (hFactor * borderRadiusFactor),
-        props.headBorderRadius,
-        props.headBorderRadius,
-      ],
+      [minHeight / 2, props.headBorderRadius, props.headBorderRadius],
       Extrapolate.CLAMP
     );
 
