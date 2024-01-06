@@ -1,196 +1,261 @@
-import React from "react";
-import { Dimensions, StyleSheet, View } from "react-native";
+import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import Animated, {
-  SharedValue,
+  Easing,
+  Extrapolate,
+  cancelAnimation,
   interpolate,
-  interpolateColor,
-  useAnimatedProps,
-  useAnimatedStyle,
+  runOnJS,
+  useDerivedValue,
+  useSharedValue,
+  withSpring,
+  withTiming,
 } from "react-native-reanimated";
-import Svg, { G, Path } from "react-native-svg";
+import { snapPoint } from "react-native-redash";
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
+import { Gesture, GestureHandlerRootView } from "react-native-gesture-handler";
+import React, { FC, useState } from "react";
+import { Placeholder } from "./Placeholder";
 import {
-  addCurve,
-  addLine,
-  addQuadraticCurve,
-  createPath,
-  serialize,
-} from "react-native-redash";
-import { GestureDetector, PanGesture } from "react-native-gesture-handler";
+  GRADIENT_COLORS,
+  BACKGROUND_COLOR,
+  TABS_GAP,
+  INNER_PADDING,
+  CONTAINER_BORDER_WIDTH,
+} from "./constants";
+import { TabItem, TabItemBackgroundProps, TabItemProps } from "./TabItem";
 
-type StickyTabProps = {
-  progress: SharedValue<number>;
-  translateX: SharedValue<number>;
-  panGesture: PanGesture;
+type Props = Pick<
+  TabItemProps,
+  | "gradientEnabled"
+  | "tabHeight"
+  | "horizontalResistance"
+  | "verticalResistance"
+> &
+  TabItemBackgroundProps & {
+    /**
+     * the default value is container / number of tabs + padding in between. If you want to set a fixed width, you can use this prop
+     */
+    tabWidth?: TabItemProps["tabWidth"];
+    values: string[];
+    renderText: (value: string, index: number) => React.ReactNode;
+    containerWidth: number;
+    containerStyle?: StyleProp<ViewStyle>;
+    placeholderBackgroundColor: string;
+    innerPadding?: number;
+    tabHeadBorderRadius?: number;
+    tabTailBorderRadius?: number;
+    containerBorderRadius?: number;
+    containerBorderWidth?: number;
+  };
+
+export const StickyTab: FC<Props> = (props) => {
+  const innerPadding = props.innerPadding ?? INNER_PADDING;
+  const tabNum = props.values.length;
+  const tabWidth =
+    props.tabWidth ??
+    (props.containerWidth - props.innerPadding * 2) / tabNum - TABS_GAP;
+  const containerBorderWidth =
+    props.containerBorderWidth ?? CONTAINER_BORDER_WIDTH;
+  const MAX_DRAG =
+    props.containerWidth -
+    2 * innerPadding -
+    tabWidth -
+    containerBorderWidth * 2;
+  const CONTAINER_HEIGHT =
+    props.tabHeight + 2 * innerPadding + 2 * containerBorderWidth;
+  const MAX_WIDTH = tabWidth * props.horizontalResistance;
+
+  const tabHeadBorderRadius = props.tabHeadBorderRadius ?? props.tabHeight / 2;
+  const tabTailBorderRadius = props.tabTailBorderRadius ?? props.tabHeight / 2;
+  const containerBorderRadius =
+    props.containerBorderRadius ??
+    (tabHeadBorderRadius + tabTailBorderRadius) / 2 + innerPadding;
+
+  const STEP = MAX_DRAG / (tabNum - 1);
+  const snapPoints = new Array(tabNum).fill(0).map((_, i) => STEP * i);
+
+  const sticked = useSharedValue(true);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const position = useSharedValue(0);
+  const sticking = useDerivedValue(() => withSpring(sticked.value ? 1 : 0));
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const offsetX = useSharedValue(0);
+  const isRunningId = useSharedValue<null | number>(null);
+  const tabTranslation = useDerivedValue(
+    () =>
+      sticked.value
+        ? position.value
+        : position.value + (1 - sticking.value) * translateX.value,
+    [sticked.value, position.value, translateX.value]
+  );
+  const progress = useDerivedValue(
+    () =>
+      sticking.value *
+      interpolate(
+        translateX.value,
+        [-MAX_WIDTH, 0, MAX_WIDTH],
+        [-1, 0, 1],
+        Extrapolate.CLAMP
+      )
+  );
+  const hapticEndStretch = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
+  const hapticStartStretch = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+  const panGesture = Gesture.Pan()
+    .onBegin(() => {
+      // Cancel animation but keep the current value
+      const prevTranslation = translateX.value;
+      cancelAnimation(translateX);
+      translateX.value = prevTranslation;
+
+      isRunningId.value = Date.now();
+      runOnJS(hapticStartStretch)();
+    })
+    .onChange(({ translationX, translationY }) => {
+      translateX.value = translationX + offsetX.value;
+      translateY.value = translationY;
+      if (Math.abs(translationX) > MAX_WIDTH && sticked.value) {
+        sticked.value = false;
+        runOnJS(hapticEndStretch)();
+      }
+    })
+    .onEnd(({ velocityX: velocity }) => {
+      const dest = snapPoint(
+        translateX.value + position.value,
+        velocity,
+        snapPoints
+      );
+      translateY.value = withSpring(0);
+      const runningId = isRunningId.value;
+
+      const finalDest = sticked.value ? 0 : dest - position.value;
+      translateX.value = withTiming(
+        finalDest,
+        { easing: Easing.inOut(Easing.ease) },
+        () => {
+          const cancelled = runningId !== isRunningId.value;
+          if (!cancelled) {
+            position.value = sticked.value ? position.value : dest;
+            translateX.value = 0;
+            sticked.value = true;
+            isRunningId.value = null;
+            offsetX.value = 0;
+            runOnJS(setSelectedIndex)(Math.round(dest / STEP));
+          } else {
+            offsetX.value = translateX.value;
+          }
+        }
+      );
+    });
+
+  return (
+    <Animated.View style={styles.container}>
+      <View
+        style={[
+          {
+            width: props.containerWidth + containerBorderWidth,
+            height: CONTAINER_HEIGHT + containerBorderWidth,
+          },
+          props.containerStyle,
+        ]}
+      >
+        <View
+          style={{
+            width: "80%",
+            height: CONTAINER_HEIGHT,
+            alignSelf: "center",
+            position: "absolute",
+            backgroundColor: BACKGROUND_COLOR,
+            shadowColor: GRADIENT_COLORS[0],
+            zIndex: -1,
+            shadowOpacity: 1,
+            shadowRadius: 100,
+            shadowOffset: {
+              width: 20,
+              height: 20,
+            },
+          }}
+        />
+        <LinearGradient
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          colors={GRADIENT_COLORS}
+          style={{
+            width: props.containerWidth + containerBorderWidth,
+            height: CONTAINER_HEIGHT + containerBorderWidth,
+            borderRadius: containerBorderRadius + containerBorderWidth,
+            padding: containerBorderWidth,
+            overflow: "hidden",
+          }}
+        >
+          <View
+            style={{
+              width: "100%",
+              height: "100%",
+              backgroundColor: BACKGROUND_COLOR,
+              borderRadius: containerBorderRadius,
+              overflow: "hidden",
+            }}
+          >
+            <TabItem
+              verticalResistance={props.verticalResistance}
+              horizontalResistance={props.horizontalResistance}
+              headBorderRadius={tabHeadBorderRadius}
+              tailBorderRadius={tabTailBorderRadius}
+              progress={progress}
+              padding={innerPadding}
+              translateX={tabTranslation}
+              translateY={translateY}
+              panGesture={panGesture}
+              tabWidth={tabWidth}
+              tabHeight={props.tabHeight}
+              gradientEnabled={props.gradientEnabled}
+              backgroundColor={
+                props.gradientEnabled === false && props.backgroundColor
+              }
+              colors={props.gradientEnabled && props.colors}
+            />
+            {props.values.map((value, index) => (
+              <Placeholder
+                key={value}
+                borderRadius={containerBorderRadius - innerPadding}
+                containerPadding={innerPadding}
+                backgroundColor={props.placeholderBackgroundColor}
+                translateX={STEP}
+                renderText={() => props.renderText(value, index)}
+                tabHeight={props.tabHeight}
+                tabWidth={tabWidth}
+                tabTranslation={tabTranslation}
+                index={index}
+                onPress={(translation) => {
+                  position.value = withTiming(translation, {
+                    easing: Easing.inOut(Easing.ease),
+                  });
+                  hapticStartStretch();
+                  translateX.value = 0;
+                  offsetX.value = 0;
+                  sticked.value = true;
+                  setSelectedIndex(index);
+                }}
+              />
+            ))}
+          </View>
+        </LinearGradient>
+      </View>
+    </Animated.View>
+  );
 };
 
 const styles = StyleSheet.create({
-  container: {},
+  container: {
+    flex: 1,
+    backgroundColor: BACKGROUND_COLOR,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });
-
-const { width } = Dimensions.get("window");
-
-export const SIZE_WIDTH = 90;
-export const SIZE_HEIGHT = 40;
-
-export const CONTAINER_PADDING = 10;
-export const TAB_PADDING = 7;
-
-export const CONTAINER_BORDER_WIDTH = 3;
-
-export const CONTAINER_WIDTH = width - 2 * CONTAINER_PADDING;
-export const CONTAINER_HEIGHT =
-  SIZE_HEIGHT + 2 * TAB_PADDING + 2 * CONTAINER_BORDER_WIDTH;
-
-const H_FACTOR = 1.3;
-const V_FACTOR = 0.1;
-
-const HEAD_BORDER_RADIUS = 20;
-const TAIL_BORDER_RADIUS = 20;
-export const CONTAINER_BORDER_RADIUS =
-  (HEAD_BORDER_RADIUS + TAIL_BORDER_RADIUS) / 2 + TAB_PADDING;
-
-const TAIL_CONTROL_DIFF_POINT = {
-  x: SIZE_WIDTH / 7,
-  y: 0,
-};
-const HEAD_CONTROL_DIFF_POINT = {
-  x: SIZE_WIDTH / 3,
-  y: 0,
-};
-export const MAX_WIDTH = SIZE_WIDTH * H_FACTOR;
-const AnimatedPath = Animated.createAnimatedComponent(Path);
-const AnimatedGroup = Animated.createAnimatedComponent(G);
-
-export const StickyTab: React.FC<StickyTabProps> = ({
-  progress,
-  translateX,
-  panGesture,
-}) => {
-  const animatedProps = useAnimatedProps(() => {
-    const factor = {
-      x: interpolate(progress.value, [-1, 0, 1], [H_FACTOR, 1, H_FACTOR]),
-      y: interpolate(progress.value, [-1, 0, 1], [V_FACTOR, 0, V_FACTOR]),
-    };
-
-    const p1 =
-      progress.value >= 0
-        ? { x: 0, y: 0 }
-        : { x: -(factor.x - 1) * SIZE_WIDTH, y: SIZE_HEIGHT * factor.y };
-    const p2 =
-      progress.value >= 0
-        ? { x: SIZE_WIDTH * factor.x, y: factor.y * SIZE_HEIGHT }
-        : { x: SIZE_WIDTH, y: 0 };
-    const p3 =
-      progress.value >= 0
-        ? { x: SIZE_WIDTH * factor.x, y: SIZE_HEIGHT * (1 - factor.y) }
-        : { x: SIZE_WIDTH, y: SIZE_HEIGHT };
-    const p4 =
-      progress.value >= 0
-        ? { x: 0, y: SIZE_HEIGHT }
-        : { x: -(factor.x - 1) * SIZE_WIDTH, y: SIZE_HEIGHT * (1 - factor.y) };
-
-    const path = createPath({ x: p1.x + TAIL_BORDER_RADIUS, y: p1.y });
-    const headControlX = factor.x * HEAD_CONTROL_DIFF_POINT.x;
-    const tailControlX = factor.x * TAIL_CONTROL_DIFF_POINT.x;
-    const headBorderRadius = interpolate(
-      progress.value,
-      [-1, 0, 1],
-      [
-        HEAD_BORDER_RADIUS / H_FACTOR,
-        HEAD_BORDER_RADIUS,
-        HEAD_BORDER_RADIUS / H_FACTOR,
-      ]
-    );
-    const tailBorderRadius = interpolate(
-      progress.value,
-      [-1, 0, 1],
-      [
-        HEAD_BORDER_RADIUS / H_FACTOR,
-        HEAD_BORDER_RADIUS,
-        HEAD_BORDER_RADIUS / H_FACTOR,
-      ]
-    );
-    addCurve(path, {
-      c1: { x: p1.x + tailBorderRadius + tailControlX, y: p1.y },
-      c2: {
-        x: p2.x - headBorderRadius - headControlX,
-        y: p2.y,
-      },
-      to: {
-        x: p2.x - headBorderRadius,
-        y: p2.y,
-      },
-    });
-    addQuadraticCurve(
-      path,
-      { x: p2.x, y: p2.y },
-      { x: p2.x, y: p2.y + headBorderRadius }
-    );
-    addLine(path, { x: p3.x, y: p3.y - headBorderRadius });
-    addQuadraticCurve(
-      path,
-      { x: p3.x, y: p3.y },
-      { x: p3.x - headBorderRadius, y: p3.y }
-    );
-    addCurve(path, {
-      c1: {
-        x: p3.x - headBorderRadius - headControlX,
-        y: p3.y,
-      },
-      c2: {
-        x: p4.x + tailBorderRadius + tailControlX,
-        y: p4.y,
-      },
-      to: {
-        x: p4.x + tailBorderRadius,
-        y: p4.y,
-      },
-    });
-    addQuadraticCurve(
-      path,
-      { x: p4.x, y: p4.y },
-      { x: p4.x, y: p4.y - tailBorderRadius }
-    );
-    addLine(path, { x: p1.x, y: p1.y + tailBorderRadius });
-    addQuadraticCurve(
-      path,
-      { x: p1.x, y: p1.y },
-      { x: p1.x + tailBorderRadius, y: p1.y }
-    );
-
-    const fill = interpolateColor(
-      progress.value,
-      [-1, 0, 1],
-      ["#97c8e8", "#45A6E5", "#97c8e8"]
-    );
-
-    return {
-      d: serialize(path),
-      fill,
-    };
-  }, [progress.value, translateX.value]);
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateX: translateX.value }],
-    };
-  });
-  return (
-    <GestureDetector gesture={panGesture}>
-      <Svg
-        style={{
-          width: "100%",
-          height: "100%",
-        }}
-      >
-        <AnimatedGroup style={animatedStyle}>
-          <AnimatedPath
-            translateY={TAB_PADDING}
-            translateX={TAB_PADDING}
-            animatedProps={animatedProps}
-          />
-        </AnimatedGroup>
-      </Svg>
-    </GestureDetector>
-  );
-};
